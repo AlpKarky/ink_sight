@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'auth_controller.dart';
+import '../auth_controller.dart';
 
 /// Sign Up screen with production-quality UX.
 ///
