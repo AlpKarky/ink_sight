@@ -5,33 +5,7 @@
 // Accepts repository via constructor for testability.
 // =============================================================================
 
-/// User model returned on successful authentication.
-class User {
-  final String id;
-  final String email;
-  final String? displayName;
-  final AuthProvider provider;
-
-  const User({
-    required this.id,
-    required this.email,
-    this.displayName,
-    required this.provider,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is User &&
-          id == other.id &&
-          email == other.email &&
-          provider == other.provider;
-
-  @override
-  int get hashCode => id.hashCode ^ email.hashCode ^ provider.hashCode;
-}
-
-enum AuthProvider { email, google, apple }
+import 'domain/auth_repository.dart';
 
 /// Auth state - sealed class for exhaustive matching.
 sealed class AuthState {
@@ -47,35 +21,13 @@ class AuthLoading extends AuthState {
 }
 
 class AuthSuccess extends AuthState {
-  final User user;
+  final AuthUser user;
   const AuthSuccess(this.user);
 }
 
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);
-}
-
-/// Repository interface the controller depends on.
-abstract class AuthRepository {
-  Future<User> signUpWithEmail({
-    required String email,
-    required String password,
-  });
-  Future<User> signInWithEmail({
-    required String email,
-    required String password,
-  });
-  Future<User> signInWithGoogle();
-  Future<User> signInWithApple();
-  Future<void> signOut();
-}
-
-/// Exception thrown by repository operations.
-class AuthException implements Exception {
-  final String code;
-  final String message;
-  const AuthException(this.code, this.message);
 }
 
 /// Authentication controller with simple state management.
@@ -127,7 +79,7 @@ class AuthController {
         password: password,
       );
       _setState(AuthSuccess(user));
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       _setState(AuthError(e.message));
     } catch (e) {
       _setState(
@@ -154,7 +106,7 @@ class AuthController {
         password: password,
       );
       _setState(AuthSuccess(user));
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       _setState(AuthError(e.message));
     } catch (e) {
       _setState(
@@ -175,7 +127,7 @@ class AuthController {
     try {
       final user = await _repository.signInWithGoogle();
       _setState(AuthSuccess(user));
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       _setState(AuthError(e.message));
     } catch (e) {
       _setState(
@@ -196,7 +148,7 @@ class AuthController {
     try {
       final user = await _repository.signInWithApple();
       _setState(AuthSuccess(user));
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       _setState(AuthError(e.message));
     } catch (e) {
       _setState(
@@ -217,7 +169,7 @@ class AuthController {
     try {
       await _repository.signOut();
       _setState(const AuthIdle());
-    } on AuthException catch (e) {
+    } on AuthFailure catch (e) {
       _setState(AuthError(e.message));
     } catch (e) {
       _setState(const AuthError('Failed to sign out. Please try again.'));
