@@ -1,5 +1,6 @@
 # Miscellaneous
 *.class
+roadmap.md
 *.lock
 *.log
 *.pyc
