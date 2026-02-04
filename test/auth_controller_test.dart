@@ -1,90 +1,16 @@
 // ignore_for_file: unused_local_variable
 import 'package:flutter_test/flutter_test.dart';
+import 'package:inksight/features/auth/auth_controller.dart';
 
 // =============================================================================
 // AUTH CONTROLLER CONTRACT TESTS
 // =============================================================================
-// These tests define the behavioral contract for AuthController.
-
-/// User model returned on successful authentication.
-class User {
-  final String id;
-  final String email;
-  final String? displayName;
-  final AuthProvider provider;
-
-  const User({
-    required this.id,
-    required this.email,
-    this.displayName,
-    required this.provider,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is User &&
-          id == other.id &&
-          email == other.email &&
-          provider == other.provider;
-
-  @override
-  int get hashCode => id.hashCode ^ email.hashCode ^ provider.hashCode;
-}
-
-enum AuthProvider { email, google, apple }
-
-/// Auth state - sealed class for exhaustive matching.
-sealed class AuthState {
-  const AuthState();
-}
-
-class AuthIdle extends AuthState {
-  const AuthIdle();
-}
-
-class AuthLoading extends AuthState {
-  const AuthLoading();
-}
-
-class AuthSuccess extends AuthState {
-  final User user;
-  const AuthSuccess(this.user);
-}
-
-class AuthError extends AuthState {
-  final String message;
-  const AuthError(this.message);
-}
-
-/// Repository interface the controller depends on.
-abstract class AuthRepository {
-  Future<User> signUpWithEmail({
-    required String email,
-    required String password,
-  });
-  Future<User> signInWithEmail({
-    required String email,
-    required String password,
-  });
-  Future<User> signInWithGoogle();
-  Future<User> signInWithApple();
-  Future<void> signOut();
-}
-
-/// Exception thrown by repository operations.
-class AuthException implements Exception {
-  final String code;
-  final String message;
-  const AuthException(this.code, this.message);
-}
 
 // =============================================================================
 // FAKE REPOSITORY FOR TESTING
 // =============================================================================
 
 class FakeAuthRepository implements AuthRepository {
-  // Configurable behaviors
   User? nextUser;
   AuthException? nextException;
   Duration? artificialDelay;
@@ -174,27 +100,24 @@ const appleUser = User(
 
 void main() {
   late FakeAuthRepository fakeRepository;
-  // late AuthController controller; // Uncomment when implementing
+  late AuthController controller;
 
   setUp(() {
     fakeRepository = FakeAuthRepository();
-    // controller = AuthController(fakeRepository); // Uncomment when implementing
+    controller = AuthController(fakeRepository);
   });
 
   group('AuthController - Initialization', () {
     test('initial state should be AuthIdle', () {
-      // final controller = AuthController(fakeRepository);
-      // expect(controller.state, isA<AuthIdle>());
-      fail('AuthController not implemented');
+      final controller = AuthController(fakeRepository);
+      expect(controller.state, isA<AuthIdle>());
     });
 
     test(
       'should accept AuthRepository via constructor (dependency injection)',
       () {
-        // This test passes if controller can be constructed with repository
-        // final controller = AuthController(fakeRepository);
-        // expect(controller, isNotNull);
-        fail('AuthController not implemented');
+        final controller = AuthController(fakeRepository);
+        expect(controller, isNotNull);
       },
     );
   });
@@ -205,29 +128,25 @@ void main() {
       () async {
         fakeRepository.nextUser = testUser;
 
-        // await controller.signUpWithEmail(
-        //   email: 'new@example.com',
-        //   password: 'password123',
-        // );
-        //
-        // expect(controller.state, isA<AuthSuccess>());
-        // expect((controller.state as AuthSuccess).user, equals(testUser));
+        await controller.signUpWithEmail(
+          email: 'new@example.com',
+          password: 'password123',
+        );
 
-        fail('AuthController.signUpWithEmail not implemented');
+        expect(controller.state, isA<AuthSuccess>());
+        expect((controller.state as AuthSuccess).user, equals(testUser));
       },
     );
 
     test('should call repository signUpWithEmail exactly once', () async {
       fakeRepository.nextUser = testUser;
 
-      // await controller.signUpWithEmail(
-      //   email: 'new@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // expect(fakeRepository.signUpCallCount, equals(1));
+      await controller.signUpWithEmail(
+        email: 'new@example.com',
+        password: 'password123',
+      );
 
-      fail('AuthController.signUpWithEmail not implemented');
+      expect(fakeRepository.signUpCallCount, equals(1));
     });
 
     test('should emit AuthError when email already exists', () async {
@@ -236,15 +155,16 @@ void main() {
         'An account with this email already exists.',
       );
 
-      // await controller.signUpWithEmail(
-      //   email: 'existing@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('already exists'));
+      await controller.signUpWithEmail(
+        email: 'existing@example.com',
+        password: 'password123',
+      );
 
-      fail('AuthController.signUpWithEmail not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect(
+        (controller.state as AuthError).message,
+        contains('already exists'),
+      );
     });
   });
 
@@ -254,15 +174,16 @@ void main() {
       () async {
         fakeRepository.nextUser = testUser;
 
-        // await controller.signInWithEmail(
-        //   email: 'test@example.com',
-        //   password: 'password123',
-        // );
-        //
-        // expect(controller.state, isA<AuthSuccess>());
-        // expect((controller.state as AuthSuccess).user.email, equals('test@example.com'));
+        await controller.signInWithEmail(
+          email: 'test@example.com',
+          password: 'password123',
+        );
 
-        fail('AuthController.signInWithEmail not implemented');
+        expect(controller.state, isA<AuthSuccess>());
+        expect(
+          (controller.state as AuthSuccess).user.email,
+          equals('test@example.com'),
+        );
       },
     );
 
@@ -272,15 +193,13 @@ void main() {
         'No account found with this email.',
       );
 
-      // await controller.signInWithEmail(
-      //   email: 'nonexistent@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('No account'));
+      await controller.signInWithEmail(
+        email: 'nonexistent@example.com',
+        password: 'password123',
+      );
 
-      fail('AuthController.signInWithEmail not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect((controller.state as AuthError).message, contains('No account'));
     });
 
     test('should emit AuthError when password is wrong', () async {
@@ -289,15 +208,16 @@ void main() {
         'Incorrect password. Please try again.',
       );
 
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'wrongpassword',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('Incorrect password'));
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'wrongpassword',
+      );
 
-      fail('AuthController.signInWithEmail not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect(
+        (controller.state as AuthError).message,
+        contains('Incorrect password'),
+      );
     });
   });
 
@@ -307,12 +227,13 @@ void main() {
       () async {
         fakeRepository.nextUser = googleUser;
 
-        // await controller.signInWithGoogle();
-        //
-        // expect(controller.state, isA<AuthSuccess>());
-        // expect((controller.state as AuthSuccess).user.provider, equals(AuthProvider.google));
+        await controller.signInWithGoogle();
 
-        fail('AuthController.signInWithGoogle not implemented');
+        expect(controller.state, isA<AuthSuccess>());
+        expect(
+          (controller.state as AuthSuccess).user.provider,
+          equals(AuthProvider.google),
+        );
       },
     );
 
@@ -322,13 +243,10 @@ void main() {
         'Sign in was cancelled.',
       );
 
-      // await controller.signInWithGoogle();
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('cancelled'));
-      // No crash, no unhandled exception
+      await controller.signInWithGoogle();
 
-      fail('AuthController.signInWithGoogle not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect((controller.state as AuthError).message, contains('cancelled'));
     });
 
     test(
@@ -339,14 +257,12 @@ void main() {
           'Google sign in is currently unavailable. Please try another method.',
         );
 
-        // await controller.signInWithGoogle();
-        //
-        // expect(controller.state, isA<AuthError>());
-        // final message = (controller.state as AuthError).message;
-        // expect(message, isNot(contains('Exception')));
-        // expect(message, contains('unavailable'));
+        await controller.signInWithGoogle();
 
-        fail('AuthController.signInWithGoogle not implemented');
+        expect(controller.state, isA<AuthError>());
+        final message = (controller.state as AuthError).message;
+        expect(message, isNot(contains('Exception')));
+        expect(message, contains('unavailable'));
       },
     );
   });
@@ -357,12 +273,13 @@ void main() {
       () async {
         fakeRepository.nextUser = appleUser;
 
-        // await controller.signInWithApple();
-        //
-        // expect(controller.state, isA<AuthSuccess>());
-        // expect((controller.state as AuthSuccess).user.provider, equals(AuthProvider.apple));
+        await controller.signInWithApple();
 
-        fail('AuthController.signInWithApple not implemented');
+        expect(controller.state, isA<AuthSuccess>());
+        expect(
+          (controller.state as AuthSuccess).user.provider,
+          equals(AuthProvider.apple),
+        );
       },
     );
 
@@ -372,12 +289,9 @@ void main() {
         'Sign in was cancelled.',
       );
 
-      // await controller.signInWithApple();
-      //
-      // expect(controller.state, isA<AuthError>());
-      // No crash, clean error state
+      await controller.signInWithApple();
 
-      fail('AuthController.signInWithApple not implemented');
+      expect(controller.state, isA<AuthError>());
     });
 
     test(
@@ -388,13 +302,11 @@ void main() {
           'Apple sign in is not available on this device.',
         );
 
-        // await controller.signInWithApple();
-        //
-        // expect(controller.state, isA<AuthError>());
-        // final message = (controller.state as AuthError).message;
-        // expect(message, contains('not available'));
+        await controller.signInWithApple();
 
-        fail('AuthController.signInWithApple not implemented');
+        expect(controller.state, isA<AuthError>());
+        final message = (controller.state as AuthError).message;
+        expect(message, contains('not available'));
       },
     );
   });
@@ -405,15 +317,16 @@ void main() {
       () async {
         // First sign in
         fakeRepository.nextUser = testUser;
-        // await controller.signInWithEmail(email: 'test@example.com', password: 'pass123');
+        await controller.signInWithEmail(
+          email: 'test@example.com',
+          password: 'pass123',
+        );
 
         // Then sign out
         fakeRepository.nextException = null;
-        // await controller.signOut();
-        //
-        // expect(controller.state, isA<AuthIdle>());
+        await controller.signOut();
 
-        fail('AuthController.signOut not implemented');
+        expect(controller.state, isA<AuthIdle>());
       },
     );
 
@@ -423,11 +336,9 @@ void main() {
         'Failed to sign out. Please try again.',
       );
 
-      // await controller.signOut();
-      //
-      // expect(controller.state, isA<AuthError>());
+      await controller.signOut();
 
-      fail('AuthController.signOut not implemented');
+      expect(controller.state, isA<AuthError>());
     });
   });
 
@@ -438,33 +349,35 @@ void main() {
         'Please enter a valid email address.',
       );
 
-      // await controller.signUpWithEmail(
-      //   email: 'not-an-email',
-      //   password: 'password123',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('valid email'));
-
-      fail('AuthController validation not implemented');
-    });
-
-    test('should emit AuthError for weak password (less than 8 chars)', () async {
-      fakeRepository.nextException = const AuthException(
-        'weak-password',
-        'Password must be at least 8 characters with at least 1 number.',
+      await controller.signUpWithEmail(
+        email: 'not-an-email',
+        password: 'password123',
       );
 
-      // await controller.signUpWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'short',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('8 characters'));
-
-      fail('AuthController validation not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect((controller.state as AuthError).message, contains('valid email'));
     });
+
+    test(
+      'should emit AuthError for weak password (less than 8 chars)',
+      () async {
+        fakeRepository.nextException = const AuthException(
+          'weak-password',
+          'Password must be at least 8 characters with at least 1 number.',
+        );
+
+        await controller.signUpWithEmail(
+          email: 'test@example.com',
+          password: 'short',
+        );
+
+        expect(controller.state, isA<AuthError>());
+        expect(
+          (controller.state as AuthError).message,
+          contains('8 characters'),
+        );
+      },
+    );
 
     test('should emit AuthError for password without number', () async {
       fakeRepository.nextException = const AuthException(
@@ -472,15 +385,13 @@ void main() {
         'Password must be at least 8 characters with at least 1 number.',
       );
 
-      // await controller.signUpWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'nonumberpassword',
-      // );
-      //
-      // expect(controller.state, isA<AuthError>());
-      // expect((controller.state as AuthError).message, contains('number'));
+      await controller.signUpWithEmail(
+        email: 'test@example.com',
+        password: 'nonumberpassword',
+      );
 
-      fail('AuthController validation not implemented');
+      expect(controller.state, isA<AuthError>());
+      expect((controller.state as AuthError).message, contains('number'));
     });
   });
 
@@ -489,24 +400,22 @@ void main() {
       fakeRepository.nextUser = testUser;
       fakeRepository.artificialDelay = const Duration(milliseconds: 10);
 
-      // final states = <AuthState>[];
-      // controller.addListener((state) => states.add(state));
-      //
-      // expect(controller.state, isA<AuthIdle>()); // initial
-      //
-      // final future = controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // // Should be loading immediately after call
-      // await Future.delayed(Duration.zero);
-      // expect(controller.state, isA<AuthLoading>());
-      //
-      // await future;
-      // expect(controller.state, isA<AuthSuccess>());
+      final states = <AuthState>[];
+      controller.addListener((state) => states.add(state));
 
-      fail('AuthController state transitions not implemented');
+      expect(controller.state, isA<AuthIdle>()); // initial
+
+      final future = controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
+
+      // Should be loading immediately after call
+      await Future.delayed(Duration.zero);
+      expect(controller.state, isA<AuthLoading>());
+
+      await future;
+      expect(controller.state, isA<AuthSuccess>());
     });
 
     test('should transition: idle -> loading -> error on failure', () async {
@@ -515,19 +424,17 @@ void main() {
         'Network error. Please check your connection.',
       );
 
-      // final states = <AuthState>[];
-      // controller.addListener((state) => states.add(state));
-      //
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // // Verify we went through loading to error
-      // expect(states, contains(isA<AuthLoading>()));
-      // expect(controller.state, isA<AuthError>());
+      final states = <AuthState>[];
+      controller.addListener((state) => states.add(state));
 
-      fail('AuthController state transitions not implemented');
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
+
+      // Verify we went through loading to error
+      expect(states, contains(isA<AuthLoading>()));
+      expect(controller.state, isA<AuthError>());
     });
   });
 
@@ -537,40 +444,36 @@ void main() {
       fakeRepository.artificialDelay = const Duration(milliseconds: 100);
 
       // Start first request
-      // final first = controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // // Try to start second request immediately (while first is loading)
-      // final second = controller.signInWithEmail(
-      //   email: 'other@example.com',
-      //   password: 'otherpass123',
-      // );
-      //
-      // await Future.wait([first, second]);
-      //
-      // // Repository should only be called once
-      // expect(fakeRepository.signInCallCount, equals(1));
+      final first = controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
 
-      fail('Duplicate request prevention not implemented');
+      // Try to start second request immediately (while first is loading)
+      final second = controller.signInWithEmail(
+        email: 'other@example.com',
+        password: 'otherpass123',
+      );
+
+      await Future.wait([first, second]);
+
+      // Repository should only be called once
+      expect(fakeRepository.signInCallCount, equals(1));
     });
 
     test('should ignore sign up request while already loading', () async {
       fakeRepository.nextUser = testUser;
       fakeRepository.artificialDelay = const Duration(milliseconds: 100);
 
-      // final futures = [
-      //   controller.signUpWithEmail(email: 'a@test.com', password: 'password1'),
-      //   controller.signUpWithEmail(email: 'b@test.com', password: 'password2'),
-      //   controller.signUpWithEmail(email: 'c@test.com', password: 'password3'),
-      // ];
-      //
-      // await Future.wait(futures);
-      //
-      // expect(fakeRepository.signUpCallCount, equals(1));
+      final futures = [
+        controller.signUpWithEmail(email: 'a@test.com', password: 'password1'),
+        controller.signUpWithEmail(email: 'b@test.com', password: 'password2'),
+        controller.signUpWithEmail(email: 'c@test.com', password: 'password3'),
+      ];
 
-      fail('Duplicate request prevention not implemented');
+      await Future.wait(futures);
+
+      expect(fakeRepository.signUpCallCount, equals(1));
     });
 
     test(
@@ -579,15 +482,13 @@ void main() {
         fakeRepository.nextUser = googleUser;
         fakeRepository.artificialDelay = const Duration(milliseconds: 100);
 
-        // await Future.wait([
-        //   controller.signInWithGoogle(),
-        //   controller.signInWithGoogle(),
-        //   controller.signInWithGoogle(),
-        // ]);
-        //
-        // expect(fakeRepository.googleSignInCallCount, equals(1));
+        await Future.wait([
+          controller.signInWithGoogle(),
+          controller.signInWithGoogle(),
+          controller.signInWithGoogle(),
+        ]);
 
-        fail('Duplicate request prevention not implemented');
+        expect(fakeRepository.googleSignInCallCount, equals(1));
       },
     );
 
@@ -595,34 +496,30 @@ void main() {
       fakeRepository.nextUser = appleUser;
       fakeRepository.artificialDelay = const Duration(milliseconds: 100);
 
-      // await Future.wait([
-      //   controller.signInWithApple(),
-      //   controller.signInWithApple(),
-      // ]);
-      //
-      // expect(fakeRepository.appleSignInCallCount, equals(1));
+      await Future.wait([
+        controller.signInWithApple(),
+        controller.signInWithApple(),
+      ]);
 
-      fail('Duplicate request prevention not implemented');
+      expect(fakeRepository.appleSignInCallCount, equals(1));
     });
 
     test('should allow new request after previous completes', () async {
       fakeRepository.nextUser = testUser;
 
       // First request completes
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // // Second request should now be allowed
-      // await controller.signInWithEmail(
-      //   email: 'other@example.com',
-      //   password: 'password456',
-      // );
-      //
-      // expect(fakeRepository.signInCallCount, equals(2));
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
 
-      fail('Duplicate request prevention not implemented');
+      // Second request should now be allowed
+      await controller.signInWithEmail(
+        email: 'other@example.com',
+        password: 'password456',
+      );
+
+      expect(fakeRepository.signInCallCount, equals(2));
     });
   });
 
@@ -635,18 +532,16 @@ void main() {
           'An unexpected error occurred. Please try again.',
         );
 
-        // await controller.signInWithEmail(
-        //   email: 'test@example.com',
-        //   password: 'password123',
-        // );
-        //
-        // final message = (controller.state as AuthError).message;
-        // expect(message, isNot(contains('Exception')));
-        // expect(message, isNot(contains('Error:')));
-        // expect(message, isNot(contains('null')));
-        // expect(message, isNot(contains('stack')));
+        await controller.signInWithEmail(
+          email: 'test@example.com',
+          password: 'password123',
+        );
 
-        fail('Error message handling not implemented');
+        final message = (controller.state as AuthError).message;
+        expect(message, isNot(contains('Exception')));
+        expect(message, isNot(contains('Error:')));
+        expect(message, isNot(contains('null')));
+        expect(message, isNot(contains('stack')));
       },
     );
 
@@ -656,16 +551,14 @@ void main() {
         'Network error. Please check your connection and try again.',
       );
 
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // final message = (controller.state as AuthError).message;
-      // expect(message.length, greaterThan(10));
-      // expect(message.endsWith('.'), isTrue);
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
 
-      fail('Error message handling not implemented');
+      final message = (controller.state as AuthError).message;
+      expect(message.length, greaterThan(10));
+      expect(message.endsWith('.'), isTrue);
     });
 
     test('network errors should suggest checking connection', () async {
@@ -674,15 +567,13 @@ void main() {
         'Network error. Please check your connection and try again.',
       );
 
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // final message = (controller.state as AuthError).message;
-      // expect(message.toLowerCase(), contains('connection'));
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
 
-      fail('Error message handling not implemented');
+      final message = (controller.state as AuthError).message;
+      expect(message.toLowerCase(), contains('connection'));
     });
   });
 
@@ -694,12 +585,9 @@ void main() {
       );
 
       // This should NOT throw
-      // await controller.signInWithGoogle();
-      //
-      // expect(controller.state, isA<AuthError>());
-      // Controller should still be in a valid state
+      await controller.signInWithGoogle();
 
-      fail('Social login graceful failure not implemented');
+      expect(controller.state, isA<AuthError>());
     });
 
     test('Apple cancellation should not throw unhandled exception', () async {
@@ -709,11 +597,9 @@ void main() {
       );
 
       // This should NOT throw
-      // await controller.signInWithApple();
-      //
-      // expect(controller.state, isA<AuthError>());
+      await controller.signInWithApple();
 
-      fail('Social login graceful failure not implemented');
+      expect(controller.state, isA<AuthError>());
     });
 
     test('should recover from social login failure and allow retry', () async {
@@ -723,58 +609,44 @@ void main() {
         'Sign in was cancelled.',
       );
 
-      // await controller.signInWithGoogle();
-      // expect(controller.state, isA<AuthError>());
+      await controller.signInWithGoogle();
+      expect(controller.state, isA<AuthError>());
 
       // Second attempt succeeds
       fakeRepository.nextException = null;
       fakeRepository.nextUser = googleUser;
 
-      // await controller.signInWithGoogle();
-      // expect(controller.state, isA<AuthSuccess>());
-
-      fail('Social login retry not implemented');
+      await controller.signInWithGoogle();
+      expect(controller.state, isA<AuthSuccess>());
     });
   });
 
   group('AuthController - Architecture Constraints', () {
     test('controller must work without Flutter UI dependencies', () {
-      // This test verifies the controller can be instantiated and used
-      // in a pure Dart test environment (no widgets, no BuildContext)
-      //
-      // final controller = AuthController(fakeRepository);
-      // expect(controller, isNotNull);
-      // expect(controller.state, isA<AuthState>());
-
-      fail('AuthController not implemented');
+      final controller = AuthController(fakeRepository);
+      expect(controller, isNotNull);
+      expect(controller.state, isA<AuthState>());
     });
 
     test('controller must accept repository via constructor injection', () {
-      // Verifies dependency injection pattern
-      // final repo1 = FakeAuthRepository();
-      // final repo2 = FakeAuthRepository();
-      //
-      // final controller1 = AuthController(repo1);
-      // final controller2 = AuthController(repo2);
-      //
-      // Different repositories = different controllers
-      // expect(identical(controller1, controller2), isFalse);
+      final repo1 = FakeAuthRepository();
+      final repo2 = FakeAuthRepository();
 
-      fail('AuthController dependency injection not implemented');
+      final controller1 = AuthController(repo1);
+      final controller2 = AuthController(repo2);
+
+      expect(identical(controller1, controller2), isFalse);
     });
 
     test('controller must be testable with fake repository', () async {
-      // Verifies that fake can control all behaviors
       fakeRepository.nextUser = testUser;
 
-      // await controller.signInWithEmail(
-      //   email: 'test@example.com',
-      //   password: 'password123',
-      // );
-      //
-      // expect((controller.state as AuthSuccess).user, equals(testUser));
+      await controller.signInWithEmail(
+        email: 'test@example.com',
+        password: 'password123',
+      );
 
-      fail('AuthController testability not verified');
+      expect((controller.state as AuthSuccess).user, equals(testUser));
     });
   });
 }
