@@ -1,29 +1,37 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth_controller.dart';
+import '../providers/auth_view_model.dart';
 
 /// Sign In screen with production-quality UX.
 ///
-/// Connects to [AuthController] for authentication operations.
-/// All auth logic is delegated to the controller - this widget
+/// Connects to [AuthViewModel] via Riverpod for authentication operations.
+/// All auth logic is delegated to the ViewModel - this widget
 /// only handles UI state and local form validation.
-class SignInPage extends StatefulWidget {
-  final AuthController controller;
+///
+/// For backwards compatibility with existing tests, an optional [controller]
+/// parameter is supported. When provided, the widget uses the injected
+/// controller instead of Riverpod.
+class SignInPage extends ConsumerStatefulWidget {
+  /// Optional controller for backwards compatibility with tests.
+  /// When null, uses [authViewModelProvider] via Riverpod.
+  final AuthController? controller;
   final VoidCallback? onSignUpTap;
   final VoidCallback? onSignInSuccess;
 
   const SignInPage({
     super.key,
-    required this.controller,
+    this.controller,
     this.onSignUpTap,
     this.onSignInSuccess,
   });
 
   @override
-  State<SignInPage> createState() => _SignInPageState();
+  ConsumerState<SignInPage> createState() => _SignInPageState();
 }
 
-class _SignInPageState extends State<SignInPage> {
+class _SignInPageState extends ConsumerState<SignInPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -36,17 +44,29 @@ class _SignInPageState extends State<SignInPage> {
   String? _emailError;
   String? _passwordError;
 
+  /// Track if we're using legacy controller mode (for tests).
+  bool get _useLegacyController => widget.controller != null;
+
+  /// Track previous state for Riverpod mode to detect changes.
+  AuthState? _previousRiverpodState;
+
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onAuthStateChanged);
+    // Only add listener in legacy mode
+    if (_useLegacyController) {
+      widget.controller!.addListener(_onAuthStateChanged);
+    }
     _emailController.addListener(_validateEmailRealTime);
     _passwordController.addListener(_validatePasswordRealTime);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onAuthStateChanged);
+    // Only remove listener in legacy mode
+    if (_useLegacyController) {
+      widget.controller!.removeListener(_onAuthStateChanged);
+    }
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
@@ -54,9 +74,15 @@ class _SignInPageState extends State<SignInPage> {
     super.dispose();
   }
 
+  /// Callback for legacy controller mode.
   void _onAuthStateChanged(AuthState state) {
     if (!mounted) return;
+    _handleStateChange(state);
+    setState(() {});
+  }
 
+  /// Handle auth state changes (used by both legacy and Riverpod modes).
+  void _handleStateChange(AuthState state) {
     switch (state) {
       case AuthSuccess():
         widget.onSignInSuccess?.call();
@@ -66,7 +92,6 @@ class _SignInPageState extends State<SignInPage> {
       case AuthLoading():
         break;
     }
-    setState(() {});
   }
 
   void _showErrorSnackbar(String message) {
@@ -131,7 +156,16 @@ class _SignInPageState extends State<SignInPage> {
         _validatePassword(_passwordController.text) == null;
   }
 
-  bool get _isLoading => widget.controller.state is AuthLoading;
+  /// Get the current auth state from either legacy controller or Riverpod.
+  AuthState get _currentAuthState {
+    if (_useLegacyController) {
+      return widget.controller!.state;
+    }
+    final asyncState = ref.read(authViewModelProvider);
+    return asyncState.asData?.value ?? const AuthIdle();
+  }
+
+  bool get _isLoading => _currentAuthState is AuthLoading;
 
   // ===========================================================================
   // ACTIONS (delegate to controller)
@@ -153,20 +187,35 @@ class _SignInPageState extends State<SignInPage> {
 
     if (!_isFormValid) return;
 
-    await widget.controller.signInWithEmail(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    if (_useLegacyController) {
+      await widget.controller!.signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+    } else {
+      await ref.read(authViewModelProvider.notifier).signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+    }
   }
 
   Future<void> _handleGoogleSignIn() async {
     _dismissKeyboard();
-    await widget.controller.signInWithGoogle();
+    if (_useLegacyController) {
+      await widget.controller!.signInWithGoogle();
+    } else {
+      await ref.read(authViewModelProvider.notifier).signInWithGoogle();
+    }
   }
 
   Future<void> _handleAppleSignIn() async {
     _dismissKeyboard();
-    await widget.controller.signInWithApple();
+    if (_useLegacyController) {
+      await widget.controller!.signInWithApple();
+    } else {
+      await ref.read(authViewModelProvider.notifier).signInWithApple();
+    }
   }
 
   // ===========================================================================
@@ -177,6 +226,24 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    // In Riverpod mode, watch the provider for state changes
+    if (!_useLegacyController) {
+      final asyncState = ref.watch(authViewModelProvider);
+      final currentState = asyncState.asData?.value ?? const AuthIdle();
+
+      // Handle state changes (success/error callbacks)
+      if (_previousRiverpodState != null &&
+          _previousRiverpodState.runtimeType != currentState.runtimeType) {
+        // Schedule callback for after build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _handleStateChange(currentState);
+          }
+        });
+      }
+      _previousRiverpodState = currentState;
+    }
 
     return GestureDetector(
       onTap: _dismissKeyboard,

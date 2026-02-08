@@ -9,26 +9,33 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:inksight/features/auth/auth_controller.dart';
 import 'package:inksight/features/auth/domain/auth_repository.dart';
+import 'package:inksight/features/auth/providers/auth_repository_provider.dart';
+import 'package:inksight/features/auth/providers/auth_view_model.dart';
 import 'package:inksight/features/auth/ui/sign_in_page.dart';
 
 void main() {
   late FakeAuthRepository fakeRepository;
-  late AuthController controller;
+  late ProviderContainer container;
 
   setUp(() {
     fakeRepository = FakeAuthRepository();
-    controller = AuthController(fakeRepository);
+    container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fakeRepository),
+      ],
+    );
   });
 
   tearDown(() {
-    controller.dispose();
+    container.dispose();
   });
 
-  /// Pumps a SignInPage wrapped in MaterialApp with adequate size for testing.
+  /// Pumps a SignInPage wrapped in MaterialApp and ProviderScope for testing.
   Future<void> pumpSignInPage(
     WidgetTester tester, {
     VoidCallback? onSignInSuccess,
@@ -43,14 +50,22 @@ void main() {
     });
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: SignInPage(
-          controller: controller,
-          onSignInSuccess: onSignInSuccess,
-          onSignUpTap: onSignUpTap,
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: SignInPage(
+            onSignInSuccess: onSignInSuccess,
+            onSignUpTap: onSignUpTap,
+          ),
         ),
       ),
     );
+  }
+
+  /// Get current auth state from the provider.
+  AuthState getCurrentState() {
+    final asyncState = container.read(authViewModelProvider);
+    return asyncState.asData?.value ?? const AuthIdle();
   }
 
   /// Finds the Sign In FilledButton.
@@ -247,7 +262,7 @@ void main() {
       await tester.tap(findGoogleButton());
       await tester.pumpAndSettle();
 
-      expect(controller.state, isA<AuthError>());
+      expect(getCurrentState(), isA<AuthError>());
 
       // Dismiss snackbar
       await tester.tap(find.text('Dismiss'));
@@ -258,7 +273,7 @@ void main() {
       await tester.tap(findGoogleButton());
       await tester.pumpAndSettle();
 
-      expect(controller.state, isA<AuthSuccess>());
+      expect(getCurrentState(), isA<AuthSuccess>());
     });
 
     testWidgets('social login cancel returns to idle-like state allowing retry', (tester) async {
@@ -271,7 +286,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // State is error but UI should allow another attempt
-      expect(controller.state, isA<AuthError>());
+      expect(getCurrentState(), isA<AuthError>());
 
       // Button should be enabled for retry
       final googleButton = tester.widget<OutlinedButton>(findGoogleButton());
